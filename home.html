@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HippoWeather — Forecast</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://unpkg.com/feather-icons"></script>
+  
+  <style>
+    /* STYLES (PURPLE EDITION) */
+    :root {
+      --bg-dark: #130f1a;
+      --text: #ffffff;
+      --text-mute: #b8b2cc;
+      --glass-bg: rgba(45, 27, 62, 0.75);
+      --glass-border: rgba(213, 63, 140, 0.3);
+      --glass-highlight: rgba(255, 255, 255, 0.1);
+      --accent: #d53f8c;
+      --accent-grad: linear-gradient(135deg, #d53f8c, #9f7aea);
+      --hippo-skin: #718096;
+      --hippo-pink: #f687b3;
+      --radius-lg: 32px;
+      --radius-md: 20px;
+      --font-main: 'Fredoka', 'Inter', sans-serif;
+    }
+    * { box-sizing: border-box; user-select: none; }
+    body { margin: 0; font-family: var(--font-main); background: var(--bg-dark); color: var(--text); height: 100vh; overflow: hidden; }
+    .viewport { position: relative; width: 100%; height: 100%; overflow: hidden; z-index: 1; }
+    .bg-gradient { position: absolute; inset: -50px; background: linear-gradient(135deg, #1a1025 0%, #2d1b3e 100%); transition: background 1.5s ease; z-index: 0; filter: blur(40px); }
+    .weather-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+    .rain-drop { position: absolute; background: rgba(213, 63, 140, 0.5); width: 2px; height: 15px; top: -20px; animation: fall linear infinite; }
+    .snowflake { position: absolute; background: white; border-radius: 50%; top: -10px; animation: fall linear infinite; filter: blur(1px); }
+    @keyframes fall { to { transform: translateY(110vh); } }
+    .flash { position: absolute; inset: 0; background: rgba(255,255,255,0.2); opacity: 0; pointer-events: none; z-index: 10; }
+    .flash.active { animation: thunder-flash 4s infinite; }
+    @keyframes thunder-flash { 0%,90%{opacity:0} 92%{opacity:0.4} 94%{opacity:0} 96%{opacity:0.2} 100%{opacity:0} }
+    .app-shell { position: relative; z-index: 2; display: grid; grid-template-columns: 360px 1fr; height: 100vh; max-width: 1600px; margin: 0 auto; }
+    
+    /* Sidebar */
+    .sidebar { background: rgba(20, 10, 30, 0.6); backdrop-filter: blur(25px); border-right: 1px solid var(--glass-border); padding: 30px 24px; display: flex; flex-direction: column; gap: 24px; height: 100vh; overflow-y: auto; }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(213, 63, 140, 0.3); border-radius: 10px; }
+    
+    /* BRAND AS LINK TO HOME */
+    .brand { display: flex; align-items: center; gap: 12px; cursor: pointer; transition: 0.2s; text-decoration: none; }
+    .brand:hover { transform: scale(1.02); opacity: 0.9; }
+    .brand-icon { width: 48px; height: 48px; background: var(--accent-grad); border-radius: 14px; display: grid; place-items: center; box-shadow: 0 0 20px rgba(213, 63, 140, 0.4); }
+    
+    .search-input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 14px 16px; border-radius: 16px; color: white; outline: none; transition: 0.3s; font-family: inherit; }
+    .search-input:focus { border-color: var(--accent); background: rgba(255,255,255,0.1); }
+    
+    .city-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill { font-size: 0.85rem; padding: 6px 14px; border-radius: 100px; background: rgba(255,255,255,0.05); border: 1px solid transparent; cursor: pointer; transition: 0.2s; }
+    .pill:hover { background: var(--accent); border-color: var(--accent); }
+    
+    .control-group { background: rgba(40, 20, 50, 0.5); border: 1px solid var(--glass-border); border-radius: 20px; padding: 20px; }
+    .group-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-mute); margin-bottom: 12px; display: block; }
+    .mode-btn { padding: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: var(--text-mute); cursor: pointer; transition: 0.2s; }
+    .mode-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+    .mode-btn.active { background: var(--accent); color: white; border-color: var(--accent); box-shadow: 0 5px 15px rgba(213, 63, 140, 0.4); }
+    .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    
+    .game-card { display: flex; align-items: center; gap: 14px; padding: 16px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 20px; margin-bottom: 10px; cursor: pointer; transition: 0.3s; }
+    .game-card:hover { transform: translateY(-3px); border-color: var(--accent); background: rgba(213, 63, 140, 0.1); }
+    .game-icon-box { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; background: linear-gradient(135deg, #667eea, #764ba2); }
+    .card-defender .game-icon-box { background: linear-gradient(135deg, #f687b3, #d53f8c); }
+    
+    /* Main Content */
+    .main-content { padding: 40px; overflow-y: auto; display: flex; flex-direction: column; gap: 32px; }
+    .hero { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; min-height: 280px; }
+    .city-info { z-index: 10; }
+    .city-title { font-size: 3.5rem; font-weight: 700; margin: 0; line-height: 1.1; color: white; text-shadow: 0 0 30px rgba(213,63,140,0.3); }
+    .big-temp { font-size: 7.5rem; font-weight: 200; line-height: 1; color: var(--accent); margin: 10px 0; }
+    
+    .hero-hippo-area { flex: 1; height: 250px; display: flex; justify-content: center; align-items: center; position: relative; }
+    .weather-3d-icon { width: 180px; height: 180px; filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5)); animation: floatIcon 6s ease-in-out infinite; }
+    
+    /* Hippo SVG */
+    .hippo-svg { width: 220px; height: 220px; overflow: visible; transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .h-skin { fill: var(--hippo-skin); transition: fill 1s; } .h-belly { fill: #a0aec0; } .h-pink { fill: var(--hippo-pink); } .h-eye { fill: white; } .h-pupil { fill: #1a202c; } .sunglasses { display: none; } .tear { opacity: 0; fill: #4299e1; }
+    .hippo-active-Wind .hippo-svg { animation: windStruggle 2s infinite ease-in-out alternate; transform-origin: bottom center; }
+    .hippo-active-Wind .h-ear { animation: earFlap 0.2s infinite; }
+    .hippo-active-Thunderstorm .hippo-svg { animation: shockShake 0.5s infinite; }
+    .hippo-active-Thunderstorm .h-skin { animation: thunderFlashSkin 1s infinite; }
+    .hippo-active-Snow .hippo-svg { animation: shiver 0.2s infinite linear; }
+    .hippo-active-Snow .h-skin { fill: #90cdf4; } 
+    .hippo-active-Rain .tear { animation: cry 1s infinite; }
+    .hippo-active-Rain .hippo-svg { transform: translateY(10px); }
+    .hippo-active-Clear .hippo-svg { animation: floatHappy 4s infinite ease-in-out; }
+    .hippo-active-Clear .sunglasses { display: block; }
+    @keyframes windStruggle { 0% { transform: rotate(-5deg) translateX(-10px); } 100% { transform: rotate(-15deg) translateX(-30px); } }
+    @keyframes earFlap { 0% { transform: scaleX(1); } 100% { transform: scaleX(0.6); } }
+    @keyframes shockShake { 0% { transform: translate(2px, 2px); } 20% { transform: translate(-2px, -4px); } 40% { transform: translate(-4px, 2px); } 100% { transform: translate(0, 0); } }
+    @keyframes thunderFlashSkin { 0%, 90% { fill: var(--hippo-skin); } 92% { fill: #fff; filter: brightness(2); } 95% { fill: var(--hippo-skin); } }
+    @keyframes shiver { 0% { transform: translate(0,0); } 25% { transform: translate(1px, 1px); } 75% { transform: translate(-1px, -1px); } }
+    @keyframes cry { 0% { transform: translateY(0); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(40px); opacity: 0; } }
+    @keyframes floatHappy { 0%, 100% { transform: translateY(0) rotate(2deg); } 50% { transform: translateY(-15px) rotate(-2deg); } }
+    @keyframes floatIcon { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+    
+    .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 24px; }
+    .hourly-strip { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 10px; }
+    .hourly-strip::-webkit-scrollbar { height: 4px; }
+    .hourly-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    .hour-item { min-width: 70px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 12px; border-radius: 18px; background: rgba(255,255,255,0.03); border: 1px solid transparent; transition: 0.2s; }
+    .hour-item:hover { background: rgba(213, 63, 140, 0.2); border-color: var(--accent); transform: translateY(-5px); }
+    .hour-item img { width: 36px; height: 36px; }
+    .grid-wrap { display: grid; grid-template-columns: 350px 1fr; gap: 24px; }
+    .forecast-list { display: flex; flex-direction: column; gap: 16px; }
+    .day-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .temp-range-bar { flex: 1; height: 5px; background: rgba(255,255,255,0.1); margin: 0 15px; border-radius: 10px; position: relative; overflow: hidden; }
+    .temp-fill { position: absolute; height: 100%; border-radius: 10px; background: linear-gradient(90deg, #d53f8c, #9f7aea); }
+    .details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .detail-box { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-height: 120px; border: 1px solid rgba(255,255,255,0.05); transition: 0.2s; }
+    .detail-box:hover { background: rgba(255,255,255,0.06); border-color: var(--accent); }
+    .d-head { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-mute); }
+    .d-val { font-size: 1.8rem; font-weight: 600; margin-top: 10px; color: white; }
+    @media (max-width: 1024px) { .app-shell { grid-template-columns: 1fr; } .sidebar { display: none; } .grid-wrap { grid-template-columns: 1fr; } .hero { flex-direction: column; text-align: center; gap: 20px; } .hero-hippo-area { height: 180px; } }
+  </style>
+</head>
+<body :class="currentWeatherClass">
+
+  <div id="app" class="viewport">
+    
+    <div class="bg-gradient" :style="backgroundStyle"></div>
+    
+    <div class="weather-layer" v-if="weatherState.includes('Rain')"><div v-for="n in 50" :key="'r'+n" class="rain-drop" :style="getRainStyle()"></div></div>
+    <div class="weather-layer" v-if="weatherState.includes('Snow')"><div v-for="n in 30" :key="'s'+n" class="snowflake" :style="getSnowStyle()"></div></div>
+    <div class="flash" :class="{active: weatherState.includes('Thunder')}"></div>
+
+    <div class="app-shell">
+      
+      <div class="sidebar">
+        <a href="index.html" class="brand">
+          <div class="brand-icon">
+             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 8a3 3 0 0 0-3-3h-4a3 3 0 0 0-3 3v1h10v-1z"></path>
+                <path d="M4 11h16v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8z"></path>
+                <circle cx="9" cy="16" r="1" fill="white"></circle>
+                <circle cx="15" cy="16" r="1" fill="white"></circle>
+             </svg>
+          </div>
+          <div>
+             <h2 style="margin:0; font-size:1.2rem; color: #fff;">HippoWeather</h2>
+             <span style="font-size:0.75rem; color: var(--accent); letter-spacing:1px; font-weight:700">PURPLE UI</span>
+          </div>
+        </a>
+
+        <div class="search-box">
+          <input class="search-input" placeholder="Пошук міста..." v-model="searchQuery" @keyup.enter="handleSearch">
+        </div>
+
+        <div class="city-pills">
+          <span class="pill" v-for="city in savedCities" @click="loadCity(city)">{{ translate(city) }}</span>
+        </div>
+
+        <div class="control-group">
+          <span class="group-label">Режим вигляду</span>
+          <div class="mode-grid">
+            <button class="mode-btn" :class="{active: demoMode === m}" v-for="m in demoModes" @click="activateDemo(m)">{{ m }}</button>
+          </div>
+          <div style="margin-top:10px; font-size:0.7rem; color:var(--text-mute)">
+            * Клікни, щоб перевірити реакцію Бегемота
+          </div>
+        </div>
+
+        <div class="arcade-section">
+          <span class="group-label">Ігрова Зона</span>
+          
+          <div class="game-card card-defender" onclick="window.open('game.html', '_blank')">
+            <div class="game-icon-box">🦛</div>
+            <div>
+              <div style="font-weight:700; color:white">Hippo Defender</div>
+              <div style="font-size:0.75rem; color:var(--text-mute)">Лови сонце, тікай від грози</div>
+            </div>
+          </div>
+
+          <div class="game-card" onclick="window.open('interaction.html', '_blank')"> 
+            <div class="game-icon-box" style="background: linear-gradient(135deg, #f6ad55, #ed8936)">🛡️</div>
+            <div>
+              <div style="font-weight:700; color:white">Kyiv Survivor</div>
+              <div style="font-size:0.75rem; color:var(--text-mute)">Захисти місто від навали</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-content">
+        
+        <div class="hero">
+          <div class="city-info">
+            <h1 class="city-title">{{ displayData.city }}</h1>
+            <div class="big-temp">{{ Math.round(displayData.temp) }}°</div>
+            <div style="font-size:1.4rem; color: var(--accent); font-weight:500">{{ displayData.desc }}</div>
+            <div style="color:var(--text-mute)">Відчувається як {{ Math.round(displayData.feels_like) }}°</div>
+          </div>
+
+          <div class="hero-hippo-area" :class="'hippo-active-' + weatherState">
+            <svg class="hippo-svg" viewBox="0 0 200 200">
+              <circle cx="50" cy="60" r="15" class="h-skin h-ear" />
+              <circle cx="150" cy="60" r="15" class="h-skin h-ear" />
+              <circle cx="50" cy="60" r="8" class="h-pink h-ear" />
+              <circle cx="150" cy="60" r="8" class="h-pink h-ear" />
+              <rect x="40" y="50" width="120" height="100" rx="40" class="h-skin" />
+              <rect x="30" y="110" width="140" height="70" rx="35" class="h-skin" />
+              <rect x="50" y="120" width="100" height="50" rx="25" class="h-belly" opacity="0.5" />
+              <circle cx="70" cy="135" r="8" class="h-pink" />
+              <circle cx="130" cy="135" r="8" class="h-pink" />
+              <circle cx="70" cy="90" r="12" class="h-eye" />
+              <circle cx="130" cy="90" r="12" class="h-eye" />
+              <circle cx="70" cy="90" r="5" class="h-pupil" />
+              <circle cx="130" cy="90" r="5" class="h-pupil" />
+              <g class="sunglasses">
+                 <rect x="50" y="80" width="40" height="20" rx="5" fill="#1a1025"/>
+                 <rect x="110" y="80" width="40" height="20" rx="5" fill="#1a1025"/>
+                 <line x1="90" y1="90" x2="110" y2="90" stroke="#1a1025" stroke-width="3" />
+              </g>
+              <circle cx="65" cy="105" r="4" class="tear" style="animation-delay: 0s" />
+              <circle cx="135" cy="105" r="4" class="tear" style="animation-delay: 0.5s" />
+              <rect x="80" y="160" width="10" height="10" rx="2" fill="white" />
+              <rect x="110" y="160" width="10" height="10" rx="2" fill="white" />
+            </svg>
+          </div>
+          
+          <img :src="currentIconUrl" class="weather-3d-icon" alt="Weather">
+        </div>
+
+        <div v-if="hourly.length">
+          <div class="group-label"><i data-feather="clock" style="width:14px"></i> Погодинно</div>
+          <div class="hourly-strip">
+            <div class="hour-item" v-for="h in hourly" :key="h.dt">
+              <span style="font-size:0.85rem; color:var(--text-mute)">{{ formatTime(h.dt) }}</span>
+              <img :src="getIconUrl(h.weather[0].main)" alt="w">
+              <span style="font-weight:600">{{ Math.round(h.main.temp) }}°</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-wrap">
+          <div class="glass-panel">
+            <div class="group-label" style="margin-bottom:16px"><i data-feather="calendar" style="width:14px"></i> 5 Днів</div>
+            <div class="forecast-list">
+              <div class="day-row" v-for="d in daily" :key="d.dt">
+                <div style="width:40px; font-weight:600">{{ getDayName(d.dt) }}</div>
+                <img :src="getIconUrl(d.weather[0].main)" style="width:28px; height:28px">
+                <div class="temp-range-bar">
+                   <div class="temp-fill" :style="getBarWidth(d)"></div>
+                </div>
+                <div style="width:60px; text-align:right">
+                  <span style="color:var(--text-mute)">{{ Math.round(d.min) }}°</span> <span style="font-weight:600">{{ Math.round(d.max) }}°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="details-grid">
+            <div class="detail-box">
+              <div class="d-head"><i data-feather="wind"></i> Вітер</div>
+              <div class="d-val">{{ displayData.wind }} <span style="font-size:1rem; color:var(--text-mute)">м/с</span></div>
+              <div style="font-size:0.8rem; color:var(--text-mute); margin-top:auto">Напрямок: Пн-Зх</div>
+            </div>
+            <div class="detail-box">
+              <div class="d-head"><i data-feather="droplet"></i> Вологість</div>
+              <div class="d-val">{{ displayData.humidity }}%</div>
+              <div style="font-size:0.8rem; color:var(--text-mute); margin-top:auto">Точка роси: 4°</div>
+            </div>
+            <div class="detail-box">
+              <div class="d-head"><i data-feather="eye"></i> Видимість</div>
+              <div class="d-val">{{ displayData.vis }} <span style="font-size:1rem; color:var(--text-mute)">км</span></div>
+              <div style="font-size:0.8rem; color:var(--text-mute); margin-top:auto">{{ getVisDesc(displayData.vis) }}</div>
+            </div>
+            <div class="detail-box">
+              <div class="d-head"><i data-feather="sun"></i> UV Індекс</div>
+              <div class="d-val">2 <span style="font-size:1rem; font-weight:400; color:var(--text-mute)">Низький</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, reactive, toRefs, computed, onMounted, nextTick } = Vue;
+
+    createApp({
+      setup() {
+        const state = reactive({
+          apiKey: 'e09e7c240e2754d1f914c7640ef2ab87',
+          searchQuery: '', // Now user can type ANY city here
+          savedCities: ['Kyiv', 'Kharkiv', 'Lviv', 'Odessa', 'Dnipro'], // Added Kharkiv
+          weatherData: null,
+          hourly: [],
+          daily: [],
+          timeVal: 50,
+          demoMode: null,
+          displayData: {
+            city: 'Kyiv', temp: 6, desc: 'Завантаження...', feels_like: 4, 
+            wind: 2.66, humidity: 94, vis: 10, main: 'Clear'
+          }
+        });
+
+        // Icons
+        const icons = {
+          'Clear': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Sun.png',
+          'Clouds': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Cloud.png',
+          'Rain': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Cloud%20with%20Rain.png',
+          'Thunderstorm': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Cloud%20with%20Lightning%20and%20Rain.png',
+          'Snow': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Cloud%20with%20Snow.png',
+          'Fog': 'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Fog.png'
+        };
+        const demoModes = ['Clear', 'Clouds', 'Rain', 'Snow', 'Thunderstorm', 'Fog'];
+
+        // Computed
+        const weatherState = computed(() => state.demoMode || state.displayData.main || 'Clear');
+        
+        const currentIconUrl = computed(() => {
+          let main = weatherState.value;
+          if (main.includes('Rain') || main.includes('Drizzle')) main = 'Rain';
+          return icons[main] || icons['Clear'];
+        });
+
+        const backgroundStyle = computed(() => {
+          const mode = weatherState.value;
+          const palettes = {
+             'Clear': ['#d53f8c', '#667eea'], 
+             'Clouds': ['#4a5568', '#2d3748'], 
+             'Rain': ['#1a202c', '#2c5282'], 
+             'Thunderstorm': ['#1a1025', '#000000'], 
+             'Snow': ['#cbd5e0', '#a0aec0'], 
+          };
+          let [c1, c2] = palettes[mode] || palettes['Clear'];
+          return { 
+             background: `linear-gradient(135deg, ${c1}, ${c2})`,
+             filter: 'brightness(0.8)' 
+          };
+        });
+
+        // Methods
+        const getIconUrl = (m) => icons[m] || icons['Clear'];
+        const translate = (c) => ({'Kyiv':'Київ', 'Kharkiv':'Харків', 'Lviv':'Львів', 'Odessa':'Одеса', 'Dnipro':'Дніпро'}[c] || c);
+        const formatTime = (ts) => new Date(ts*1000).toLocaleTimeString('uk-UA', {hour:'2-digit', minute:'2-digit'});
+        const getDayName = (ts) => new Date(ts*1000).toLocaleDateString('uk-UA', {weekday:'short'});
+        const getVisDesc = (km) => km > 9 ? 'Чудова' : 'Середня';
+        
+        const getBarWidth = (d) => {
+           const minC = Math.max(-10, d.min); const maxC = Math.min(40, d.max);
+           const range = 50; 
+           return { left: ((minC+10)/range)*100+'%', width: ((maxC-minC)/range)*100+'%' };
+        };
+
+        const getRainStyle = () => ({ left: Math.random()*100+'%', animationDelay: Math.random()+'s', opacity: Math.random() });
+        const getSnowStyle = () => ({ left: Math.random()*100+'%', animationDelay: Math.random()*2+'s', width: (Math.random()*5+2)+'px' });
+
+        const activateDemo = (m) => {
+           state.demoMode = m;
+           state.displayData.desc = `Демо: ${m}`;
+           state.displayData.main = m;
+        };
+
+        const loadCity = (c) => { state.searchQuery = c; handleSearch(); };
+        
+        const getCityFromUrl = () => {
+          const params = new URLSearchParams(window.location.search);
+          return params.get('city') || 'Kyiv';
+        };
+
+        const handleSearch = async () => {
+          // Use search query if present, otherwise load URL/default
+          const cityToSearch = state.searchQuery || getCityFromUrl();
+          
+          state.demoMode = null;
+          try {
+             // API Call - works for ANY city worldwide
+             const res = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${cityToSearch}&units=metric&lang=ua&appid=${state.apiKey}`);
+             const data = await res.json();
+             
+             if(data.cod !== "200") throw new Error(); // Handle API error codes
+             
+             const now = data.list[0];
+             state.displayData = {
+                city: data.city.name, temp: now.main.temp, desc: now.weather[0].description,
+                feels_like: now.main.feels_like, wind: now.wind.speed, humidity: now.main.humidity,
+                vis: now.visibility/1000, main: now.weather[0].main
+             };
+             state.hourly = data.list.slice(0,8);
+             
+             const days = {};
+             data.list.forEach(i => {
+                const d = new Date(i.dt*1000).getDate();
+                if(!days[d]) days[d] = { dt: i.dt, min: i.main.temp_min, max: i.main.temp_max, weather: i.weather };
+                else { days[d].min = Math.min(days[d].min, i.main.temp_min); days[d].max = Math.max(days[d].max, i.main.temp_max); }
+             });
+             state.daily = Object.values(days).slice(0,5);
+             
+          } catch(e) { 
+             alert('Місто не знайдено! Спробуйте іншу назву.');
+          }
+        };
+
+        onMounted(() => {
+           feather.replace();
+           handleSearch();
+        });
+
+        Vue.watch(() => [state.demoMode, state.displayData], () => nextTick(() => feather.replace()));
+
+        return {
+          ...toRefs(state),
+          weatherState, backgroundStyle, currentIconUrl, demoModes,
+          getIconUrl, translate, formatTime, getDayName, getVisDesc, getBarWidth,
+          getRainStyle, getSnowStyle, activateDemo, loadCity, handleSearch
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 // Для отримання сьогоднішньої дати у форматі YYYY-MM-DD
-/*function get_today_date() {
+function get_today_date() {
     const now = new Date();
     return now.toISOString().split('T')[0];
 }
@@ -38,4 +38,5 @@ async function get_weather(location, date1, date2, YOUR_API_KEY = "4PSYAUWNUWQM8
     } else {
         console.log("Error fetching weather data:", response.statusText);
     }
-} */
+}
+

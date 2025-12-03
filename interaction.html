@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Hippo Survivor — Military</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #1a1c20; /* Темний мілітарі фон */
+    --accent: #7cb342; /* Військовий зелений */
+    --accent2: #ffca28; /* Золотий для рангу */
+    --glass: rgba(30, 35, 30, 0.95);
+    --border: rgba(124, 179, 66, 0.5);
+  }
+  
+  body { margin: 0; background: var(--bg-dark); font-family: 'Fredoka', sans-serif; overflow: hidden; color: white; touch-action: none; }
+  canvas { display: block; }
+  
+  /* UI */
+  #ui { position: absolute; inset: 0; pointer-events: none; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+  
+  .top-bar { width: 100%; max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  
+  /* XP Bar */
+  .xp-container { 
+    width: 100%; height: 24px; background: rgba(0,0,0,0.6); border-radius: 6px; 
+    border: 2px solid var(--border); overflow: hidden; position: relative; 
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  }
+  .xp-fill { height: 100%; background: linear-gradient(90deg, #558b2f, #7cb342); width: 0%; transition: width 0.2s; }
+  .xp-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; text-shadow: 0 1px 2px black; z-index: 2; letter-spacing: 1px; }
+
+  .stats { display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: bold; text-shadow: 0 2px 5px black; margin-top: 5px; }
+  
+  /* Menus */
+  .menu { position: absolute; inset: 0; background: rgba(15, 20, 15, 0.98); z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; }
+  .hidden { display: none !important; }
+  
+  h1 { font-size: 3.5rem; color: var(--accent); margin-bottom: 5px; text-transform: uppercase; text-shadow: 0 0 25px var(--accent); text-align: center; line-height: 1; letter-spacing: 2px; }
+  h2 { color: #8d6e63; margin-bottom: 20px; font-size: 1.2rem; letter-spacing: 4px; text-transform: uppercase; }
+  
+  .btn {
+    background: linear-gradient(135deg, #558b2f, #33691e); border: 2px solid #7cb342; padding: 18px 50px;
+    font-size: 1.5rem; font-weight: bold; color: white; border-radius: 5px; cursor: pointer;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: transform 0.1s; text-transform: uppercase; letter-spacing: 2px;
+  }
+  .btn:active { transform: scale(0.95); background: #33691e; }
+
+  /* Cards */
+  .upgrade-grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 90%; max-width: 400px; }
+  .card {
+    background: rgba(255,255,255,0.05); border: 2px solid var(--border); border-radius: 10px;
+    padding: 15px; display: flex; align-items: center; gap: 15px; cursor: pointer; transition: 0.2s;
+  }
+  .card:hover { background: rgba(124, 179, 66, 0.2); transform: scale(1.03); border-color: #fff; }
+  .card-icon { font-size: 2.5rem; }
+  .card-info h3 { margin: 0; font-size: 1.2rem; color: var(--accent); }
+  .card-info p { margin: 5px 0 0; font-size: 0.85rem; color: #bbb; }
+
+  /* Joystick */
+  #stick-zone { position: absolute; bottom: 40px; left: 40px; width: 140px; height: 140px; border: 3px solid rgba(255,255,255,0.1); border-radius: 50%; pointer-events: auto; display: none; }
+  #stick { width: 60px; height: 60px; background: var(--accent); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 15px var(--accent); opacity: 0.8; }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+  <div class="top-bar">
+    <div class="xp-container">
+       <div class="xp-fill" id="xpBar"></div>
+       <div class="xp-text">ЗВАННЯ: РЯДОВИЙ <span id="lvDisp">1</span></div>
+    </div>
+    <div class="stats">
+      <span style="color:#e57373">✚ <span id="hpDisp">100</span></span>
+      <span style="color:#fff">☠️ <span id="killDisp">0</span></span>
+    </div>
+  </div>
+  <div id="stick-zone"><div id="stick"></div></div>
+</div>
+
+<div id="startMenu" class="menu">
+  <h1>HIPPO<br>TACTICAL</h1>
+  <h2>SURVIVAL MISSION</h2>
+  <button class="btn" onclick="Game.start()">В БІЙ</button>
+</div>
+
+<div id="lvlMenu" class="menu hidden">
+  <h1 style="font-size:2rem">ПІДВИЩЕННЯ!</h1>
+  <div class="upgrade-grid" id="upgList"></div>
+</div>
+
+<div id="overMenu" class="menu hidden">
+  <h1 style="color:#e53e3e">МІСІЯ ПРОВАЛЕНА</h1>
+  <p>Ліквідовано цілей: <span id="finalKills" style="color:#fff; font-weight:bold; font-size:1.5rem"></span></p>
+  <button class="btn" onclick="Game.start()">НОВА СПРОБА</button>
+</div>
+
+<script>
+/** --- ENGINE --- **/
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d');
+let W, H;
+function resize() { 
+  W = cvs.width = window.innerWidth; 
+  H = cvs.height = window.innerHeight; 
+  if('ontouchstart' in window) document.getElementById('stick-zone').style.display = 'block';
+}
+window.addEventListener('resize', resize);
+resize();
+
+/** --- GAME LOGIC --- **/
+const Game = {
+  active: false,
+  paused: false,
+  lastTime: 0,
+  kills: 0,
+  
+  player: null,
+  enemies: [],
+  bullets: [],
+  gems: [],
+  texts: [],
+  
+  spawnTimer: 0,
+  spawnRate: 1.5,
+  difficulty: 1,
+  
+  start() {
+    this.active = true;
+    this.paused = false;
+    this.kills = 0;
+    this.spawnRate = 1.5;
+    this.spawnTimer = 0;
+    this.difficulty = 1;
+    
+    this.enemies = []; this.bullets = []; this.gems = []; this.texts = [];
+    this.player = new Player();
+    
+    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
+    this.updateUI();
+    
+    this.lastTime = performance.now();
+    requestAnimationFrame(loop);
+  },
+  
+  levelUp() {
+    this.paused = true; // Stop loop
+    
+    const options = [
+      { icon: '🔫', name: 'Скорострільність', desc: '-15% Час перезарядки', func: () => Game.player.fireRate *= 0.85 },
+      { icon: '💣', name: 'Калібр', desc: '+10 Шкоди', func: () => Game.player.damage += 10 },
+      { icon: '🥾', name: 'Мобільність', desc: '+10% Швидкості', func: () => Game.player.speed *= 1.1 },
+      { icon: '💊', name: 'Медпак', desc: '+30 HP', func: () => Game.player.hp = Math.min(100, Game.player.hp + 30) },
+      { icon: '💥', name: 'Подвійний постріл', desc: '+1 Куля', func: () => Game.player.bulletCount++ }
+    ];
+    
+    options.sort(() => Math.random() - 0.5);
+    const picks = options.slice(0, 3);
+    
+    const list = document.getElementById('upgList');
+    list.innerHTML = '';
+    
+    picks.forEach(opt => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `<div class="card-icon">${opt.icon}</div><div class="card-info"><h3>${opt.name}</h3><p>${opt.desc}</p></div>`;
+      card.onclick = () => {
+        opt.func();
+        this.resume(); // CORRECT RESUME
+      };
+      list.appendChild(card);
+    });
+    
+    document.getElementById('lvlMenu').classList.remove('hidden');
+  },
+  
+  // NEW RESUME FUNCTION TO FIX BUGS
+  resume() {
+    document.getElementById('lvlMenu').classList.add('hidden');
+    this.paused = false;
+    this.lastTime = performance.now(); // Reset time to prevent jumps
+    requestAnimationFrame(loop); // Restart loop
+  },
+  
+  over() {
+    this.active = false;
+    document.getElementById('finalKills').innerText = this.kills;
+    document.getElementById('overMenu').classList.remove('hidden');
+  },
+
+  updateUI() {
+    document.getElementById('hpDisp').innerText = Math.ceil(this.player.hp);
+    document.getElementById('killDisp').innerText = this.kills;
+    document.getElementById('lvDisp').innerText = this.player.level;
+    const pct = (this.player.xp / this.player.nextXp) * 100;
+    document.getElementById('xpBar').style.width = `${pct}%`;
+  },
+
+  spawnEnemy() {
+    this.difficulty = 1 + (this.kills / 25);
+    const r = Math.random();
+    let type = 'grunt';
+    if(this.kills > 15 && r < 0.3) type = 'scout'; // Fast
+    if(this.kills > 30 && r < 0.1) type = 'heavy'; // Tank
+    
+    const side = Math.floor(Math.random()*4);
+    let x, y;
+    if(side===0){x=Math.random()*W; y=-30;}
+    else if(side===1){x=W+30; y=Math.random()*H;}
+    else if(side===2){x=Math.random()*W; y=H+30;}
+    else {x=-30; y=Math.random()*H;}
+    
+    this.enemies.push(new Enemy(x, y, type, this.difficulty));
+    
+    this.spawnRate = Math.max(0.2, 1.5 - (this.kills * 0.015));
+    this.spawnTimer = this.spawnRate;
+  }
+};
+
+/** --- PLAYER (MILITARY HIPPO) --- **/
+class Player {
+  constructor() {
+    this.x = W/2; this.y = H/2; this.r = 25;
+    this.hp = 100; this.xp = 0; this.level = 1; this.nextXp = 10;
+    this.speed = 200;
+    this.fireRate = 0.6; 
+    this.fireTimer = 0;
+    this.damage = 20;
+    this.bulletCount = 1;
+  }
+  
+  update(dt) {
+    let mx = 0, my = 0;
+    if(keys.w) my--; if(keys.s) my++;
+    if(keys.a) mx--; if(keys.d) mx++;
+    if(joy.active) { mx = joy.x; my = joy.y; }
+    
+    const len = Math.hypot(mx, my);
+    if(len > 1) { mx/=len; my/=len; }
+    
+    this.x += mx * this.speed * dt;
+    this.y += my * this.speed * dt;
+    
+    this.x = Math.max(this.r, Math.min(W-this.r, this.x));
+    this.y = Math.max(this.r, Math.min(H-this.r, this.y));
+    
+    // Auto Shoot
+    this.fireTimer -= dt;
+    if(this.fireTimer <= 0) {
+      let target = null, minD = Infinity;
+      Game.enemies.forEach(e => {
+        const d = Math.hypot(e.x - this.x, e.y - this.y);
+        if(d < minD) { minD = d; target = e; }
+      });
+      
+      if(target && minD < 500) {
+        this.shoot(target);
+        this.fireTimer = this.fireRate;
+      }
+    }
+  }
+  
+  shoot(target) {
+    const angle = Math.atan2(target.y - this.y, target.x - this.x);
+    for(let i=0; i<this.bulletCount; i++) {
+      const spread = (i - (this.bulletCount-1)/2) * 0.15;
+      Game.bullets.push(new Bullet(this.x, this.y, angle + spread, this.damage));
+    }
+  }
+  
+  gainXp(amount) {
+    this.xp += amount;
+    if(this.xp >= this.nextXp) {
+      this.xp -= this.nextXp;
+      this.level++;
+      this.nextXp = Math.floor(this.nextXp * 1.5);
+      Game.levelUp();
+    }
+    Game.updateUI();
+  }
+  
+  // --- ВІЙСЬКОВИЙ БЕГЕМОТ (DRAW) ---
+  draw() {
+    ctx.save(); ctx.translate(this.x, this.y);
+    
+    // 1. Body (Armor Vest)
+    ctx.fillStyle = '#4b5320'; // Dark Olive
+    ctx.beginPath(); ctx.arc(0, 5, this.r, 0, Math.PI*2); ctx.fill();
+    // Vest Detail
+    ctx.fillStyle = '#333'; ctx.fillRect(-10, 0, 20, 15); 
+    
+    // 2. Head (Hippo Skin)
+    ctx.fillStyle = '#78909c'; // Blue-Grey Skin
+    ctx.beginPath(); ctx.arc(0, -10, 22, 0, Math.PI*2); ctx.fill();
+    
+    // 3. Ears
+    ctx.beginPath(); ctx.arc(-18, -20, 7, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(18, -20, 7, 0, Math.PI*2); ctx.fill();
+    
+    // 4. Helmet (Military)
+    ctx.fillStyle = '#558b2f'; // Army Green
+    ctx.beginPath(); ctx.arc(0, -18, 23, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = '#33691e'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-23, -18); ctx.lineTo(23, -18); ctx.stroke();
+    // Helmet Strap
+    ctx.lineWidth = 2; ctx.strokeStyle = '#222';
+    ctx.beginPath(); ctx.moveTo(-20,-18); ctx.quadraticCurveTo(0, 10, 20, -18); ctx.stroke();
+    
+    // 5. Face
+    // Snout
+    ctx.fillStyle = '#b0bec5'; 
+    ctx.beginPath(); ctx.ellipse(0, -2, 16, 10, 0, 0, Math.PI*2); ctx.fill();
+    // Nostrils
+    ctx.fillStyle = '#37474f';
+    ctx.beginPath(); ctx.arc(-6, -2, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, -2, 2, 0, Math.PI*2); ctx.fill();
+    
+    // Eyes (Serious)
+    ctx.fillStyle = 'white'; 
+    ctx.beginPath(); ctx.arc(-8, -12, 5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(8, -12, 5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'black';
+    ctx.beginPath(); ctx.arc(-8, -12, 2, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(8, -12, 2, 0, Math.PI*2); ctx.fill();
+    // Angry Eyebrows
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-14, -18); ctx.lineTo(-4, -15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(14, -18); ctx.lineTo(4, -15); ctx.stroke();
+
+    ctx.restore();
+  }
+}
+
+class Enemy {
+  constructor(x, y, type, difficulty) {
+    this.x = x; this.y = y; this.type = type;
+    
+    if(type === 'heavy') { this.hp = 80*difficulty; this.speed = 50; this.r = 30; this.col = '#d32f2f'; } // Red Tank
+    else if(type === 'scout') { this.hp = 20*difficulty; this.speed = 140; this.r = 15; this.col = '#ffeb3b'; } // Yellow Fast
+    else { this.hp = 40*difficulty; this.speed = 80; this.r = 20; this.col = '#78909c'; } // Grey Grunt
+    
+    this.maxHp = this.hp;
+  }
+  
+  update(dt, p) {
+    const ang = Math.atan2(p.y - this.y, p.x - this.x);
+    this.x += Math.cos(ang) * this.speed * dt;
+    this.y += Math.sin(ang) * this.speed * dt;
+  }
+  
+  draw() {
+    // HP Bar
+    const pct = this.hp/this.maxHp;
+    ctx.fillStyle = 'black'; ctx.fillRect(this.x-15, this.y-this.r-8, 30, 4);
+    ctx.fillStyle = '#f44336'; ctx.fillRect(this.x-15, this.y-this.r-8, 30*pct, 4);
+    
+    // Body
+    ctx.fillStyle = this.col;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI*2); ctx.fill();
+    // Angry face
+    ctx.fillStyle = 'black';
+    ctx.beginPath(); ctx.arc(this.x-5, this.y-2, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(this.x+5, this.y-2, 3, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+class Bullet {
+  constructor(x, y, ang, dmg) {
+    this.x = x; this.y = y; this.dmg = dmg;
+    this.vx = Math.cos(ang) * 600;
+    this.vy = Math.sin(ang) * 600;
+    this.life = 2.0;
+  }
+  update(dt) { this.x+=this.vx*dt; this.y+=this.vy*dt; this.life-=dt; }
+  draw() {
+    ctx.fillStyle = '#ffeb3b'; // Tracer round
+    ctx.shadowColor = '#ff9800'; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(this.x, this.y, 4, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+class Gem {
+  constructor(x, y) { this.x=x; this.y=y; this.val=10; }
+  draw() {
+    ctx.fillStyle = '#00e676'; // Green XP
+    ctx.beginPath(); ctx.moveTo(this.x, this.y-6); ctx.lineTo(this.x+5, this.y); ctx.lineTo(this.x, this.y+6); ctx.lineTo(this.x-5, this.y); ctx.fill();
+  }
+}
+
+/** --- INPUTS --- **/
+const keys = { w:0, a:0, s:0, d:0 };
+window.onkeydown = e => { if(e.key==='w' || e.key==='ArrowUp') keys.w=1; if(e.key==='s' || e.key==='ArrowDown') keys.s=1; if(e.key==='a' || e.key==='ArrowLeft') keys.a=1; if(e.key==='d' || e.key==='ArrowRight') keys.d=1; };
+window.onkeyup = e => { if(e.key==='w' || e.key==='ArrowUp') keys.w=0; if(e.key==='s' || e.key==='ArrowDown') keys.s=0; if(e.key==='a' || e.key==='ArrowLeft') keys.a=0; if(e.key==='d' || e.key==='ArrowRight') keys.d=0; };
+
+const joy = { x:0, y:0, active:false };
+const z1 = document.getElementById('stick-zone'); const s1 = document.getElementById('stick');
+z1.ontouchstart = e => { joy.active=true; moveStick(e.touches[0]); };
+z1.ontouchmove = e => { e.preventDefault(); moveStick(e.touches[0]); };
+z1.ontouchend = () => { joy.active=false; joy.x=0; joy.y=0; s1.style.transform='translate(-50%,-50%)'; };
+function moveStick(t) {
+  const r = z1.getBoundingClientRect();
+  let dx = t.clientX - (r.left+r.width/2), dy = t.clientY - (r.top+r.height/2);
+  const d = Math.hypot(dx,dy);
+  const max = 50;
+  if(d>max) { dx=(dx/d)*max; dy=(dy/d)*max; }
+  joy.x = dx/max; joy.y = dy/max;
+  s1.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+
+function spawnText(txt, x, y, col='#fff') {
+  Game.texts.push({ str:txt, x, y, life:1.0, col });
+}
+
+/** --- MAIN LOOP --- **/
+function loop(now) {
+  if(!Game.active || Game.paused) return;
+  
+  let dt = (now - Game.lastTime)/1000;
+  if(dt > 0.1) dt = 0.1; // Clamp dt
+  Game.lastTime = now;
+  
+  // 1. Spawn Logic
+  Game.spawnTimer -= dt;
+  if(Game.spawnTimer <= 0) Game.spawnEnemy();
+  
+  // 2. Player
+  Game.player.update(dt);
+  
+  // 3. Bullets
+  for(let i=Game.bullets.length-1; i>=0; i--) {
+    let b = Game.bullets[i];
+    b.update(dt);
+    if(b.life <= 0) { Game.bullets.splice(i,1); continue; }
+    
+    // Hit Enemy
+    for(let j=Game.enemies.length-1; j>=0; j--) {
+      let e = Game.enemies[j];
+      if(Math.hypot(e.x-b.x, e.y-b.y) < e.r + 10) {
+        e.hp -= b.dmg;
+        Game.bullets.splice(i,1);
+        spawnText(b.dmg, e.x, e.y, '#fff');
+        
+        if(e.hp <= 0) {
+          Game.enemies.splice(j,1);
+          Game.kills++;
+          Game.gems.push(new Gem(e.x, e.y));
+          Game.updateUI();
+        }
+        break;
+      }
+    }
+  }
+  
+  // 4. Enemies
+  for(let i=Game.enemies.length-1; i>=0; i--) {
+    let e = Game.enemies[i];
+    e.update(dt, Game.player);
+    
+    // Hit Player
+    if(Math.hypot(Game.player.x-e.x, Game.player.y-e.y) < Game.player.r + e.r) {
+      Game.player.hp -= 30 * dt;
+      Game.updateUI();
+      if(Game.player.hp <= 0) { Game.over(); return; }
+    }
+  }
+  
+  // 5. Gems (XP)
+  for(let i=Game.gems.length-1; i>=0; i--) {
+    let g = Game.gems[i];
+    let d = Math.hypot(Game.player.x-g.x, Game.player.y-g.y);
+    if(d < 150) { g.x += (Game.player.x - g.x) * 5 * dt; g.y += (Game.player.y - g.y) * 5 * dt; }
+    if(d < Game.player.r) {
+      Game.player.gainXp(10);
+      Game.gems.splice(i,1);
+    }
+  }
+  
+  // 6. Texts
+  for(let i=Game.texts.length-1; i>=0; i--) {
+     let t = Game.texts[i]; t.y -= 30*dt; t.life -= dt;
+     if(t.life <= 0) Game.texts.splice(i,1);
+  }
+
+  // --- DRAW ---
+  ctx.fillStyle = '#1e2124'; ctx.fillRect(0,0,W,H);
+  
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 1;
+  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  Game.gems.forEach(g => g.draw());
+  Game.bullets.forEach(b => b.draw());
+  Game.enemies.forEach(e => e.draw());
+  Game.player.draw();
+  
+  ctx.font = "bold 16px Fredoka"; ctx.textAlign = "center";
+  Game.texts.forEach(t => {
+     ctx.globalAlpha = t.life; ctx.fillStyle = t.col; ctx.fillText(t.str, t.x, t.y);
+  });
+  ctx.globalAlpha = 1;
+
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
