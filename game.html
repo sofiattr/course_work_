@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Hippo Catch — Turbo Mode</title>
+    <link rel="stylesheet" href="game.css" />
+  </head>
+  <body>
+    <canvas id="bgCanvas"></canvas>
+
+    <div class="ui-layer">
+      <div class="score-box">💎 <span id="scoreVal">0</span></div>
+      <div class="lives" id="livesDisplay">❤️❤️❤️</div>
+    </div>
+
+    <div class="game-area" id="gameArea">
+      <div id="hippo" class="hippo">🦛</div>
+    </div>
+
+    <div id="startScreen" class="menu-overlay">
+      <h1>Hippo Turbo</h1>
+      <p class="description-text">
+        Лови фрукти, уникай небезпек.<br />Використовуй стрілки або дотик.
+      </p>
+      <button class="btn" onclick="startGame()">ГРАТИ</button>
+      <a href="index.html" class="back-link">← Назад до погоди</a>
+    </div>
+
+    <div id="gameOverScreen" class="menu-overlay" style="display: none">
+      <h1 class="game-over-title">Кінець гри</h1>
+      <p class="final-score-text">Рахунок: <b id="finalScore">0</b></p>
+      <button class="btn" onclick="startGame()">ЩЕ РАЗ</button>
+      <a href="index.html" class="back-link">← Назад до погоди</a>
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+</html>
