@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>HippoWeather — Start</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/feather-icons"></script>
+  <style>
+    :root {
+      --bg-dark: #130f1a;
+      --accent: #d53f8c;
+      --gold: #f6e05e;
+      --border: rgba(255, 255, 255, 0.1);
+      --glass: rgba(255, 255, 255, 0.05);
+      --font-main: 'Fredoka', sans-serif;
+    }
+    * { box-sizing: border-box; }
+    
+    body {
+      margin: 0; font-family: var(--font-main); background: var(--bg-dark); color: white;
+      height: 100vh; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      overflow: hidden; position: relative;
+    }
+
+    .bg-gradient {
+      position: absolute; inset: -50px; background: radial-gradient(circle at 50% 50%, #2d1b3e 0%, #130f1a 70%);
+      z-index: -1; filter: blur(40px);
+    }
+
+    .container {
+      text-align: center; width: 100%; max-width: 450px; padding: 20px; z-index: 10;
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    .app-title {
+      font-size: 3.5rem; font-weight: 800; color: #fff; text-transform: uppercase;
+      letter-spacing: 2px; margin-bottom: 10px; text-shadow: 0 0 20px var(--accent);
+    }
+    .app-title span { color: var(--accent); }
+
+    .clock { font-size: 2.5rem; font-weight: 600; background: linear-gradient(to bottom, #fff, #b8b2cc); -webkit-background-clip: text; background-clip: text; color: transparent; margin-bottom: 5px; }
+    .date { font-size: 1rem; color: var(--accent); margin-bottom: 30px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ЗЕВС КОНТЕЙНЕР (ДЛЯ КАРТИНКИ) */
+    .zeus-wrap { 
+        width: 300px; 
+        height: 300px; /* Квадратний контейнер */
+        margin: 0 auto 30px; 
+        position: relative; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center;
+    }
+    
+    /* Стиль для самого зображення Зевса */
+    .zeus-img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* Зберігає пропорції */
+        /* Додаємо світіння, щоб виглядало круто на темному фоні */
+        filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.4)); 
+        transition: transform 0.3s ease;
+    }
+    .zeus-img:hover { transform: scale(1.05); }
+
+    /* ПОШУК */
+    .search-wrapper { position: relative; width: 100%; }
+    .search-input { width: 100%; padding: 18px 25px; padding-right: 55px; border-radius: 20px; border: 2px solid var(--border); background: var(--glass); color: white; font-size: 1.1rem; font-family: inherit; outline: none; }
+    .search-btn { position: absolute; right: 10px; top: 10px; width: 40px; height: 40px; border: none; border-radius: 12px; background: var(--accent); color: white; cursor: pointer; display: grid; place-items: center; transition: 0.2s; }
+    
+    .autocomplete-list { 
+        position: absolute; top: 100%; left: 0; right: 0; 
+        background: #1a1025; border: 1px solid var(--border); 
+        border-radius: 15px; margin-top: 10px; 
+        max-height: 250px; overflow-y: auto; z-index: 100; 
+        display: none; 
+    }
+    .autocomplete-item { padding: 12px 20px; cursor: pointer; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .autocomplete-item:hover { background: var(--accent); color: white; }
+
+    .game-link { margin-top: 30px; display: inline-block; color: #b8b2cc; text-decoration: none; border-bottom: 1px dashed #b8b2cc; }
+  </style>
+</head>
+<body>
+
+  <div class="bg-gradient"></div>
+
+  <div class="container">
+    <h1 class="app-title">Hippo<span>Weather</span></h1>
+    
+    <div class="clock" id="clock">00:00</div>
+    <div class="date" id="date">...</div>
+
+    <div class="zeus-wrap">
+      <img src="Zeus.jpg" alt="Hippo Zeus" class="zeus-img" onerror="this.style.display='none'; alert('Помилка: Зображення Zeus.jpg не знайдено! Перевірте назву файлу.');">
+    </div>
+
+    <div class="search-wrapper">
+      <input type="text" class="search-input" id="cityInput" placeholder="Введіть місто (напр. Київ)..." autocomplete="off">
+      <button class="search-btn" onclick="goToHome()"><i data-feather="arrow-right"></i></button>
+      <div id="autocompleteList" class="autocomplete-list"></div>
+    </div>
+
+    <a href="game.html" class="game-link">Грати в Hippo Games</a>
+  </div>
+
+  <script>
+    feather.replace();
+
+    // 1. CLOCK
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').innerText = now.toLocaleTimeString('uk-UA', {hour: '2-digit', minute:'2-digit'});
+      document.getElementById('date').innerText = now.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long' });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // 2. CITY DATABASE
+    const cities = ["Київ", "Харків", "Одеса", "Дніпро", "Донецьк", "Запоріжжя", "Львів", "Кривий Ріг", "Миколаїв", "Маріуполь", "Луганськ", "Вінниця", "Житомир", "Суми", "Хмельницький", "Чернівці", "Рівне", "Кам'янське", "Кропивницький", "Івано-Франківськ", "Кременчук", "Тернопіль", "Луцьк", "Біла Церква", "Ужгород"];
+    
+    // 3. TRANSLITERATION
+    const translitMap = {'а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e','є':'ye','ж':'zh','з':'z','и':'y','і':'i','ї':'yi','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya','А':'A','Б':'B','В':'V','Г':'H','Ґ':'G','Д':'D','Е':'E','Є':'Ye','Ж':'Zh','З':'Z','И':'Y','І':'I','Ї':'Yi','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh','Щ':'Shch','Ь':'','Ю':'Yu','Я':'Ya'};
+    function toEnglish(word) { return word.split('').map(char => translitMap[char] || char).join(''); }
+
+    const input = document.getElementById('cityInput');
+    const list = document.getElementById('autocompleteList');
+
+    // 4. AUTOCOMPLETE LOGIC
+    input.addEventListener('input', function() {
+      const val = this.value; list.innerHTML = '';
+      if (!val) { list.style.display = 'none'; return; }
+      const matches = cities.filter(c => c.toLowerCase().startsWith(val.toLowerCase()));
+      if (matches.length > 0) {
+        list.style.display = 'block';
+        matches.forEach(city => {
+          const item = document.createElement('div');
+          item.className = 'autocomplete-item'; item.innerText = city;
+          item.onclick = function() { input.value = city; list.style.display = 'none'; goToHome(); };
+          list.appendChild(item);
+        });
+      } else { list.style.display = 'none'; }
+    });
+    document.addEventListener('click', e => { if(e.target !== input) list.style.display = 'none'; });
+
+    // 5. REDIRECT FUNCTION
+    function goToHome() {
+      let city = input.value.trim();
+      let targetCity = city ? city : 'Київ'; 
+      const safeCity = toEnglish(targetCity);
+      window.location.href = `home.html?city=${encodeURIComponent(safeCity)}`;
+    }
+
+    input.addEventListener('keypress', (e) => {
+      if(e.key === 'Enter') { list.style.display = 'none'; goToHome(); }
+    });
+  </script>
+</body>
+</html>

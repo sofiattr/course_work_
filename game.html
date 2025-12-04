@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hippo Catch — HARDCORE FIXED</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #130f1a;
+      --accent: #d53f8c;
+      --glass: rgba(20, 20, 30, 0.95);
+      --border: rgba(255, 255, 255, 0.15);
+      --hippo-size: 90px;
+    }
+    
+    * { box-sizing: border-box; user-select: none; }
+    
+    body {
+      margin: 0; overflow: hidden; font-family: 'Fredoka', sans-serif;
+      background: var(--bg-dark); color: white; height: 100vh;
+      touch-action: none;
+    }
+
+    /* Background Canvas */
+    #bgCanvas { position: absolute; inset: 0; z-index: 0; }
+
+    /* UI Layer */
+    .ui-layer {
+      position: absolute; inset: 0; pointer-events: none; padding: 20px; z-index: 20;
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+
+    .left-panel {
+      display: flex; flex-direction: column; gap: 12px; align-items: flex-start;
+    }
+
+    .score-box {
+      background: var(--glass); padding: 12px 24px; border-radius: 20px;
+      border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      min-width: 140px; pointer-events: auto;
+    }
+    .score-val { font-size: 2.2rem; font-weight: 800; color: #fff; line-height: 1; }
+    .label { font-size: 0.75rem; color: #b8b2cc; text-transform: uppercase; font-weight: 600; }
+    .record-val { font-size: 0.85rem; color: #f6ad55; margin-top: 4px; }
+
+    /* Weather Badge */
+    .weather-badge {
+      background: rgba(255, 255, 255, 0.1); padding: 8px 16px; border-radius: 12px;
+      font-size: 0.9rem; color: white; border: 1px solid rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px; font-weight: 600;
+    }
+
+    .lives { font-size: 2rem; letter-spacing: 5px; filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.5)); }
+
+    /* Game Area */
+    .game-area { position: absolute; inset: 0; z-index: 5; overflow: hidden; }
+
+    /* Hippo Character */
+    .hippo-wrap {
+      position: absolute; bottom: 20px; left: 0;
+      width: var(--hippo-size); height: var(--hippo-size);
+      will-change: transform; z-index: 10;
+    }
+
+    .hippo-svg { width: 100%; height: 100%; overflow: visible; }
+    .h-skin { fill: #718096; transition: fill 0.5s; }
+    .h-pink { fill: #f687b3; }
+    
+    /* Mouth States */
+    .mouth-closed { display: block; }
+    .mouth-open { display: none; }
+    .is-eating .mouth-closed { display: none; }
+    .is-eating .mouth-open { display: block; }
+    .is-eating { transform: scale(1.1); transition: transform 0.1s; }
+
+    /* Accessories & Skins */
+    .accessory { display: none; }
+    .skin-Snow .h-skin { fill: #90cdf4; }
+    .skin-Snow .acc-hat { display: block; }
+    .skin-Clear .acc-glasses { display: block; }
+    .skin-Rain .acc-umbrella { display: block; }
+    .skin-Storm .h-eye { fill: #fff; r: 14; } 
+    .skin-Storm .h-pupil { r: 3; }
+
+    /* Effects */
+    .shield-aura {
+      position: absolute; inset: -15px; border-radius: 50%;
+      border: 4px solid #4fd1c5; opacity: 0; 
+      box-shadow: 0 0 30px #4fd1c5, inset 0 0 20px #4fd1c5;
+      pointer-events: none;
+    }
+    .has-shield .shield-aura { opacity: 1; animation: pulseShield 0.2s infinite; } /* Швидка пульсація бо мало часу */
+
+    .rocket-flame {
+      position: absolute; bottom: -40px; left: 50%; transform: translateX(-50%);
+      width: 30px; height: 60px; background: linear-gradient(to bottom, orange, red, transparent);
+      border-radius: 50%; filter: blur(6px); opacity: 0;
+    }
+    .has-rocket .rocket-flame { opacity: 1; animation: flame 0.1s infinite alternate; }
+
+    @keyframes flame { from { height: 60px; opacity: 0.8; } to { height: 80px; opacity: 1; } }
+    @keyframes pulseShield { 0%{transform:scale(0.95); opacity:0.8} 100%{transform:scale(1.05); opacity:0.5} }
+
+    /* Items */
+    .item {
+      position: absolute; top: 0; left: 0;
+      width: 60px; height: 60px;
+      font-size: 45px; display: flex; align-items: center; justify-content: center;
+      will-change: transform; z-index: 6;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Menus */
+    .menu-overlay {
+      position: absolute; inset: 0; background: rgba(19, 15, 26, 0.98);
+      z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    }
+    h1 { font-size: 3.5rem; margin: 0 0 20px; color: var(--accent); text-shadow: 0 0 30px var(--accent); line-height: 1; }
+    .btn {
+      background: linear-gradient(135deg, #d53f8c, #9f7aea); color: white;
+      padding: 20px 60px; font-size: 1.5rem; border: none; border-radius: 60px;
+      font-weight: 800; cursor: pointer; box-shadow: 0 10px 40px rgba(213, 63, 140, 0.5);
+      transition: transform 0.1s; margin-top: 30px; pointer-events: auto;
+    }
+    .btn:active { transform: scale(0.95); }
+    
+    /* Floating Text */
+    .float-text {
+      position: absolute; font-weight: 900; font-size: 28px; pointer-events: none;
+      animation: floatUp 0.6s forwards; z-index: 50; text-shadow: 0 4px 10px rgba(0,0,0,0.8);
+    }
+    @keyframes floatUp { 0%{transform:scale(0.5) translateY(0); opacity:0;} 20%{opacity:1; transform:scale(1.2);} 100%{transform:translateY(-80px); opacity:0;} }
+  </style>
+</head>
+<body>
+
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="ui-layer">
+    <div class="left-panel">
+      <div class="score-box">
+        <div class="label">Рахунок</div>
+        <div class="score-val" id="scoreDisp">0</div>
+        <div class="record-val">🏆 Макс: <span id="recordDisp">0</span></div>
+      </div>
+      <div id="weatherBadge" class="weather-badge">
+         <span>☀️</span> <span>Ясно</span>
+      </div>
+    </div>
+    
+    <div class="lives" id="livesDisp">❤️❤️❤️</div>
+  </div>
+
+  <div class="game-area" id="gameArea">
+    <div id="hippo" class="hippo-wrap skin-Clear">
+      <div class="shield-aura"></div>
+      
+      <svg class="hippo-svg" viewBox="0 0 200 200">
+        <circle cx="50" cy="60" r="15" class="h-skin" />
+        <circle cx="150" cy="60" r="15" class="h-skin" />
+        <circle cx="50" cy="60" r="8" class="h-pink" />
+        <circle cx="150" cy="60" r="8" class="h-pink" />
+        
+        <rect x="40" y="50" width="120" height="100" rx="40" class="h-skin" />
+        
+        <g class="mouth-open">
+            <path d="M30,110 Q100,180 170,110" fill="#718096" class="h-skin" />
+            <path d="M50,110 Q100,160 150,110" fill="#e53e3e" /> 
+            <rect x="60" y="110" width="15" height="15" fill="white" rx="3"/>
+            <rect x="125" y="110" width="15" height="15" fill="white" rx="3"/>
+        </g>
+
+        <g class="mouth-closed">
+            <rect x="30" y="110" width="140" height="70" rx="35" class="h-skin" />
+            <rect x="50" y="120" width="100" height="50" rx="25" fill="#a0aec0" opacity="0.5" />
+            <circle cx="70" cy="135" r="8" class="h-pink" />
+            <circle cx="130" cy="135" r="8" class="h-pink" />
+        </g>
+
+        <circle cx="70" cy="90" r="12" fill="white" class="h-eye" />
+        <circle cx="130" cy="90" r="12" fill="white" class="h-eye" />
+        <circle cx="70" cy="90" r="5" fill="#1a202c" class="h-pupil" />
+        <circle cx="130" cy="90" r="5" fill="#1a202c" class="h-pupil" />
+        
+        <g class="accessory acc-glasses">
+           <rect x="50" y="80" width="40" height="20" rx="5" fill="#1a1025"/>
+           <rect x="110" y="80" width="40" height="20" rx="5" fill="#1a1025"/>
+           <line x1="90" y1="90" x2="110" y2="90" stroke="#1a1025" stroke-width="3" />
+        </g>
+        <g class="accessory acc-hat">
+           <path d="M50,60 Q100,10 150,60" fill="#e53e3e" stroke="#c53030" stroke-width="5"/>
+           <circle cx="100" cy="35" r="12" fill="#fff"/>
+        </g>
+        <g class="accessory acc-umbrella">
+           <path d="M160,140 L190,80" stroke="#fff" stroke-width="4"/>
+           <path d="M160,80 Q190,40 220,80" fill="yellow" stroke="orange" stroke-width="2"/>
+        </g>
+      </svg>
+      
+      <div class="rocket-flame"></div>
+    </div>
+  </div>
+
+  <div id="startMenu" class="menu-overlay">
+    <h1>EXTREME<br>SURVIVAL</h1>
+    <p style="color:#b8b2cc; font-size:1.2rem; max-width:300px">
+       • Увага: Дуже складно!<br>
+       • 🛡️ Щит лише 3 сек.<br>
+       • 🎁 Подарунок раз в 12 сек.
+    </p>
+    <button class="btn" onclick="Game.start()">В БІЙ!</button>
+  </div>
+
+  <div id="gameOverMenu" class="menu-overlay" style="display:none">
+    <h1 style="font-size:3rem; color:#e53e3e">Ой!</h1>
+    <p style="font-size:1.5rem; color:white;">Рахунок: <b id="finalScore">0</b></p>
+    <button class="btn" onclick="Game.start()">ЩЕ РАЗ</button>
+  </div>
+
+<script>
+// --- INITIALIZATION ---
+const bgCanvas = document.getElementById('bgCanvas');
+const ctx = bgCanvas.getContext('2d');
+const gameArea = document.getElementById('gameArea');
+const hippoEl = document.getElementById('hippo');
+
+let W = window.innerWidth;
+let H = window.innerHeight;
+
+const HIPPO_SIZE = 90;
+const ITEM_SIZE = 60;
+const FRUITS = ['🍉','🍍','🍇','🍊','🍌','🍒','🍓'];
+
+// --- STATE VARIABLES (Global for safety) ---
+let hippoX = 0;
+let items = [];
+let bgParticles = [];
+let keys = {Left: false, Right: false};
+let touchX = null;
+
+// --- CANVAS RESIZE ---
+function resize() { W = bgCanvas.width = window.innerWidth; H = bgCanvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+// --- GAME LOGIC ---
+const Game = {
+  active: false,
+  score: 0,
+  lives: 3,
+  lastTime: 0,
+  
+  spawnTimer: 0,
+  boxTimer: 0,
+  shieldTime: 0,
+  rocketTime: 0,
+  eatAnimTimer: 0,
+  
+  spawnInterval: 600,
+  globalSpeed: 1, 
+  
+  highScore: 0,
+  weatherIdx: 0,
+  weathers: [
+    { bg: ['#130f1a', '#2d3748'], pCol: '#fff', hazard: '💣', skin: 'skin-Clear', lbl: '☀️ Ясно' },
+    { bg: ['#1a202c', '#2c5282'], pCol: '#4299e1', hazard: '💧', skin: 'skin-Rain', lbl: '🌧️ Дощ' },
+    { bg: ['#2d3748', '#718096'], pCol: '#fff', hazard: '❄️', skin: 'skin-Snow', lbl: '❄️ Сніг' },
+    { bg: ['#230438', '#000'], pCol: '#9f7aea', hazard: '⚡', skin: 'skin-Storm', lbl: '⚡ Гроза' }
+  ],
+
+  // Safe Record Loading
+  loadRecord() {
+    try {
+      this.highScore = localStorage.getItem('hippoMax') || 0;
+    } catch(e) { console.log('Storage blocked'); }
+    document.getElementById('recordDisp').innerText = this.highScore;
+  },
+
+  start() {
+    this.active = true;
+    this.score = 0;
+    this.lives = 3;
+    this.globalSpeed = 1;
+    this.weatherIdx = 0;
+    
+    this.boxTimer = 0;
+    this.shieldTime = 0;
+    this.rocketTime = 0;
+    this.eatAnimTimer = 0;
+    
+    // Clear Items
+    items.forEach(i => i.el.remove());
+    items = [];
+    
+    // Reset Hippo
+    hippoX = (W - HIPPO_SIZE) / 2;
+    this.applySkin();
+    this.updateHUD();
+    this.loadRecord();
+    
+    document.getElementById('startMenu').style.display = 'none';
+    document.getElementById('gameOverMenu').style.display = 'none';
+    
+    this.lastTime = performance.now();
+    requestAnimationFrame(loop);
+  },
+
+  over() {
+    this.active = false;
+    try {
+      if(this.score > this.highScore) {
+        this.highScore = this.score;
+        localStorage.setItem('hippoMax', this.highScore);
+      }
+    } catch(e) {}
+    
+    document.getElementById('finalScore').innerText = Math.floor(this.score);
+    document.getElementById('gameOverMenu').style.display = 'flex';
+  },
+
+  addScore(n) {
+    this.score += n;
+    
+    // Change weather every 100 points
+    if(Math.floor(this.score/100) > Math.floor((this.score-n)/100)) {
+       this.weatherIdx = (this.weatherIdx + 1) % this.weathers.length;
+       this.applySkin();
+       if(this.rocketTime <= 0) createFloatingText("ЗМІНА ПОГОДИ!", W/2, H/2, '#fff');
+    }
+    this.updateHUD();
+  },
+
+  applySkin() {
+    const w = this.weathers[this.weatherIdx];
+    let classes = `hippo-wrap ${w.skin}`;
+    if(this.shieldTime > 0) classes += ' has-shield';
+    if(this.rocketTime > 0) classes += ' has-rocket';
+    if(this.eatAnimTimer > 0) classes += ' is-eating';
+    
+    hippoEl.className = classes;
+    
+    const badge = document.getElementById('weatherBadge');
+    badge.innerHTML = `<span>${w.lbl.split(' ')[0]}</span> <span>${w.lbl.split(' ')[1]}</span>`;
+  },
+  
+  triggerEatAnim() {
+      this.eatAnimTimer = 0.2; 
+      hippoEl.classList.add('is-eating');
+  },
+
+  updateHUD() {
+    document.getElementById('scoreDisp').innerText = Math.floor(this.score);
+    document.getElementById('livesDisp').innerText = '❤️'.repeat(Math.max(0, this.lives));
+  }
+};
+
+// --- INPUTS ---
+window.onkeydown = e => { if(e.key==='ArrowLeft') keys.Left=true; if(e.key==='ArrowRight') keys.Right=true; };
+window.onkeyup = e => { if(e.key==='ArrowLeft') keys.Left=false; if(e.key==='ArrowRight') keys.Right=false; };
+
+gameArea.ontouchstart = e => { touchX = e.touches[0].clientX; };
+gameArea.ontouchmove = e => { e.preventDefault(); touchX = e.touches[0].clientX; };
+gameArea.ontouchend = () => { touchX = null; };
+
+// --- DIFFICULTY (EXTREME) ---
+function getDifficultyParams() {
+    // 1. Chance of Bad Weather
+    // Start at 60% (0.6). Increase by 2% per 100 points. Max 95%.
+    let badChance = 0.6 + Math.min(0.35, Math.floor(Game.score / 100) * 0.02);
+
+    // 2. Speed Multiplier
+    // Start 1.3x. Max 3.0x
+    let speedMult = 1.3 + Math.min(1.7, Game.score / 1000);
+
+    return { badChance, speedMult };
+}
+
+// --- SPAWN LOGIC ---
+function spawnItem(isBox = false) {
+  const el = document.createElement('div');
+  el.className = 'item';
+  let type, char, pts=0, dmg=0;
+
+  if(isBox) {
+    type = 'box'; char = '🎁';
+  } else {
+    const diff = getDifficultyParams();
+    
+    if(Math.random() > diff.badChance) {
+      type = 'good'; char = FRUITS[Math.floor(Math.random()*FRUITS.length)]; pts = 10;
+    } else {
+      type = 'bad'; char = Game.weathers[Game.weatherIdx].hazard; dmg = 1;
+    }
+  }
+  
+  el.innerText = char;
+  gameArea.appendChild(el);
+  
+  const diff = getDifficultyParams();
+  let baseSpeed = 350 * diff.speedMult;
+
+  items.push({
+    el, x: Math.random() * (W - ITEM_SIZE), y: -70,
+    speed: isBox ? 300 : baseSpeed,
+    type, pts, dmg
+  });
+}
+
+function openBox(x, y) {
+  const r = Math.random();
+  let txt = "";
+  
+  if(r < 0.3) {
+    Game.rocketTime = 5; txt = "🚀 ТУРБО!"; hippoEl.classList.add('has-rocket');
+  } else if (r < 0.7) {
+    Game.shieldTime = 3; txt = "🛡️ ЩИТ (3с)"; hippoEl.classList.add('has-shield'); // 3 SECONDS
+  } else {
+    if(Game.lives < 5) Game.lives++;
+    txt = "❤️ ЖИТТЯ";
+  }
+  createFloatingText(txt, x, y, '#f6ad55');
+  Game.updateHUD();
+}
+
+function createFloatingText(txt, x, y, col) {
+  const el = document.createElement('div');
+  el.className = 'float-text';
+  el.innerText = txt; el.style.left=x+'px'; el.style.top=y+'px'; el.style.color=col;
+  gameArea.appendChild(el);
+  setTimeout(() => el.remove(), 600);
+}
+
+// --- MAIN LOOP ---
+function loop(now) {
+  if(!Game.active) return;
+  
+  let dt = (now - Game.lastTime) / 1000;
+  if(dt > 0.1) dt = 0.1; 
+  Game.lastTime = now;
+
+  // -- UPDATE LOGIC --
+  
+  // Rocket (Turbo)
+  if(Game.rocketTime > 0) {
+      Game.globalSpeed = 20; 
+      Game.rocketTime -= dt;
+      if(Game.rocketTime <= 0) {
+          hippoEl.classList.remove('has-rocket');
+          Game.globalSpeed = 1;
+      }
+  } else {
+      Game.globalSpeed = 1;
+  }
+
+  // Shield
+  if(Game.shieldTime > 0) {
+      Game.shieldTime -= dt;
+      if(Game.shieldTime <= 0) hippoEl.classList.remove('has-shield');
+  }
+
+  // Eat Anim
+  if(Game.eatAnimTimer > 0) {
+      Game.eatAnimTimer -= dt;
+      if(Game.eatAnimTimer <= 0) hippoEl.classList.remove('is-eating');
+  }
+
+  // Spawn Rate (Hardcore)
+  // Start: 450ms. Decrease by 20ms per 100 points. Cap at 120ms.
+  let spawnDelay = Math.max(120, 450 - (Math.floor(Game.score / 100) * 20));
+  
+  let realInterval = spawnDelay / Game.globalSpeed;
+  if(Game.rocketTime > 0) realInterval = 50; 
+
+  Game.spawnTimer += dt * 1000;
+  if(Game.spawnTimer > realInterval) {
+      spawnItem(false);
+      Game.spawnTimer = 0;
+  }
+
+  // Box every 12 seconds
+  Game.boxTimer += dt;
+  if(Game.boxTimer > 12) {
+      spawnItem(true);
+      Game.boxTimer = 0;
+  }
+
+  // -- MOVEMENT --
+  let moveSpeed = 800 * dt;
+  if(keys.Left) hippoX -= moveSpeed;
+  if(keys.Right) hippoX += moveSpeed;
+  
+  if(touchX !== null) {
+      let center = hippoX + HIPPO_SIZE/2;
+      let diff = touchX - center;
+      if(Math.abs(diff) > 5) hippoX += diff * 15 * dt;
+  }
+
+  if(hippoX < 0) hippoX = 0;
+  if(hippoX > W - HIPPO_SIZE) hippoX = W - HIPPO_SIZE;
+  
+  hippoEl.style.transform = `translateX(${hippoX}px)`;
+
+  // -- COLLISIONS --
+  const hitL = hippoX;
+  const hitR = hippoX + HIPPO_SIZE;
+  const hitT = H - HIPPO_SIZE - 20;
+  const hitB = H - 20;
+
+  for(let i=items.length-1; i>=0; i--) {
+      let item = items[i];
+      item.y += item.speed * Game.globalSpeed * dt;
+      item.el.style.transform = `translate(${item.x}px, ${item.y}px)`;
+
+      if(item.y + ITEM_SIZE > hitT && item.y < hitB) {
+          if(item.x + ITEM_SIZE > hitL && item.x < hitR) {
+              
+              if(item.type === 'good') {
+                  Game.addScore(item.pts);
+                  Game.triggerEatAnim();
+                  createFloatingText(`+${item.pts}`, item.x, item.y, '#4ade80');
+              } 
+              else if(item.type === 'box') {
+                  openBox(item.x, item.y);
+              } 
+              else {
+                  if(Game.rocketTime > 0 || Game.shieldTime > 0) {
+                      createFloatingText("БЛОК", item.x, item.y, '#fff');
+                  } else {
+                      Game.lives -= item.dmg;
+                      createFloatingText("💥", item.x, item.y, '#f56565');
+                      hippoEl.style.filter = 'grayscale(1) brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)';
+                      setTimeout(()=>hippoEl.style.filter='', 200);
+                  }
+              }
+
+              item.el.remove();
+              items.splice(i, 1);
+              Game.updateHUD();
+
+              if(Game.lives <= 0) { Game.over(); return; }
+              continue;
+          }
+      }
+
+      if(item.y > H) {
+          item.el.remove();
+          items.splice(i, 1);
+      }
+  }
+
+  drawBg();
+  requestAnimationFrame(loop);
+}
+
+function drawBg() {
+  const w = Game.weathers[Game.weatherIdx];
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, w.bg[0]); grad.addColorStop(1, w.bg[1]);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  
+  ctx.fillStyle = w.pCol;
+  if(Math.random() < 0.2) {
+    bgParticles.push({
+      x: Math.random() * W, y: -10, 
+      vy: (Math.random() * 5 + 2) * (Game.globalSpeed > 1 ? 5 : 1), 
+      s: Math.random() * 3
+    });
+  }
+  
+  for(let i=bgParticles.length-1; i>=0; i--) {
+    let p = bgParticles[i];
+    p.y += p.vy;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI*2); ctx.fill();
+    if(p.y > H) bgParticles.splice(i, 1);
+  }
+}
+
+// Initial Load Record
+Game.loadRecord();
+</script>
+</body>
+</html>

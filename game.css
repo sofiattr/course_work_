@@ -1,0 +1,190 @@
+:root {
+    --hippo-size: 70px;
+    --item-size: 50px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: "SF Pro Display", sans-serif;
+    background: #000;
+    color: white;
+    height: 100vh;
+    touch-action: none;
+    /* Block scroll on mobile */
+    user-select: none;
+}
+
+/* Cinematic Background */
+#bgCanvas {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+/* UI */
+.ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.score-box {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.lives {
+    font-size: 1.5rem;
+    letter-spacing: 4px;
+}
+
+/* Game Objects */
+.game-area {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+}
+
+.hippo {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* Base position, moved by transform */
+    width: var(--hippo-size);
+    height: var(--hippo-size);
+    font-size: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.5));
+    z-index: 10;
+}
+
+.hippo.hurt {
+    filter: grayscale(1) brightness(0.5);
+    transform-origin: center;
+    animation: shake 0.3s;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translate3d(var(--x), var(--y), 0) rotate(0deg);
+    }
+
+    25% {
+        transform: translate3d(var(--x), var(--y), 0) rotate(-10deg);
+    }
+
+    75% {
+        transform: translate3d(var(--x), var(--y), 0) rotate(10deg);
+    }
+}
+
+.item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 38px;
+    width: var(--item-size);
+    height: var(--item-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform;
+    z-index: 5;
+}
+
+/* Menus */
+.menu-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(15px);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+h1 {
+    font-size: 3.5rem;
+    margin: 0 0 10px;
+    background: linear-gradient(to right, #fff, #4facfe);
+    -webkit-background-clip: text;
+    color: transparent;
+    font-weight: 800;
+    text-shadow: 0 10px 30px rgba(79, 172, 254, 0.3);
+}
+
+.game-over-title {
+    font-size: 3rem;
+}
+
+.description-text {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+}
+
+.final-score-text {
+    font-size: 1.5rem;
+    color: white;
+    margin-bottom: 30px;
+}
+
+.btn {
+    background: white;
+    color: black;
+    padding: 16px 48px;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 50px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    transition: transform 0.1s;
+    margin-bottom: 20px;
+    /* Додано для відступу від посилання */
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.back-link {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+    text-decoration: underline;
+    margin-top: 10px;
+}
+
+/* Particles */
+.particle {
+    position: absolute;
+    pointer-events: none;
+    border-radius: 50%;
+    z-index: 20;
+}
